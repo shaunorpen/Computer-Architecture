@@ -21,7 +21,6 @@ class CPU:
         
         self.branch_table = dict()
 
-        # self.branch_table['HLT'] = self.running = False
         self.branch_table['LDI'] = lambda operand_a, operand_b, _: self.reg_write(operand_a, operand_b)
         self.branch_table['MUL'] = lambda operand_a, operand_b, instruction: self.alu(instruction, operand_a, operand_b)
         self.branch_table['PRN'] = lambda operand_a, _1, _2: print(self.reg_read(operand_a))
@@ -99,8 +98,15 @@ class CPU:
             # Read the next two byte values and store them in operand_a and operand_b
             operand_a = self.ram_read(self.pc + 1)
             operand_b = self.ram_read(self.pc + 2)
-            self.branch_table[decoded_instruction](operand_a, operand_b, instruction)
-            # Update the PC to point to the next instruction
-            self.pc += (1 + num_operands)
-            # Loop
-            self.run()
+            # Halt
+            if decoded_instruction == 'HLT':
+                self.running = False
+            else:
+                # Execute the instruction
+                self.branch_table[decoded_instruction](operand_a, operand_b, instruction)
+                # Update the PC to point to the next instruction
+                self.pc += (1 + num_operands)
+                # Loop
+                self.run()
+
+        sys.exit()
