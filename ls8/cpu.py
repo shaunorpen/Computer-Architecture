@@ -11,16 +11,17 @@ class CPU:
         self.reg = [0] * 8      # 8 general-purpose registers
         self.pc = 0             # program counter initialised to zero
 
-        # Instruction Set
-        self.HLT = 0b0001
-        self.LDI = 0b0010
-        self.PRN = 0b0111
-
     def ram_read(self, address):
         return self.ram[address]
 
     def ram_write(self, address, value):
         self.ram[address] = value
+
+    def reg_read(self, address):
+        return self.reg[address]
+
+    def reg_write(self, address, value):
+        self.reg[address] = value
 
     def load(self):
         """Load a program into memory."""
@@ -29,15 +30,22 @@ class CPU:
 
         # For now, we've just hardcoded a program:
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
+        # program = [
+        #     # From print8.ls8
+        #     0b10000010, # LDI R0,8
+        #     0b00000000,
+        #     0b00001000,
+        #     0b01000111, # PRN R0
+        #     0b00000000,
+        #     0b00000001, # HLT
+        # ]
+
+        program = list()
+
+        with open("/Users/shaunorpen/Lambda/ls8/ls8/examples/mult.ls8") as f:
+            for line in f:
+                line_values = line.split("#")
+                program.append(int(line_values[0].strip(), 2))
 
         for instruction in program:
             self.ram[address] = instruction
@@ -48,6 +56,8 @@ class CPU:
 
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
+        elif op == 0b0010:
+            self.reg[reg_a] *= self.reg[reg_b]
         #elif op == "SUB": etc
         else:
             raise Exception("Unsupported ALU operation")
@@ -80,27 +90,29 @@ class CPU:
         # mask and bitshift right four places to get the set program counter flag
         set_program_counter = (instruction & 0b00010000) >> 4
         # mask everything but the last four characters to get the cpu instruction code
-        cpu_instruction = instruction & 0b00001111
-        return (num_operands, alu_operation, set_program_counter, cpu_instruction)
+        instruction = instruction & 0b00001111
+        return (num_operands, alu_operation, set_program_counter, instruction)
 
     def run(self):
         """Run the CPU."""
         # Read next instruction from memory address in PC and store it in the instruction register
         ir = self.ram_read(self.pc)
         # Decode the value stored in the instruction register
-        (num_operands, alu_operation, set_program_counter, cpu_instruction) = self.decode(ir)
+        (num_operands, alu_operation, set_program_counter, instruction) = self.decode(ir)
         # Read the next two byte values and store them in operand_a and operand_b
         operand_a = self.ram_read(self.pc + 1)
         operand_b = self.ram_read(self.pc + 2)
         # HLT
-        if cpu_instruction == self.HLT:
+        if ir == 0b00000001:
             sys.exit()
         # LDI
-        elif cpu_instruction == self.LDI:
-            self.ram_write(operand_a, operand_b)
+        elif ir == 0b10000010:
+            self.reg_write(operand_a, operand_b)
         # PRN
-        elif cpu_instruction == self.PRN:
-            print(self.ram_read(operand_a))
+        elif ir == 0b01000111:
+            print(self.reg_read(operand_a))
+        elif ir == 0b10100010:
+            self.alu(instruction, operand_a, operand_b)
         else:
             raise Exception("Unsupported CPU instruction")
         # Update the PC to point to the next instruction
