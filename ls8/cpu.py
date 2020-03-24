@@ -7,9 +7,24 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
+        self.running = True
+
         self.ram = [0] * 256    # 256 bytes of memory
         self.reg = [0] * 8      # 8 general-purpose registers
         self.pc = 0             # program counter initialised to zero
+
+        self.instructions = dict()
+        self.instructions[0b00000001] = 'HLT'
+        self.instructions[0b10000010] = 'LDI'
+        self.instructions[0b10100010] = 'MUL'
+        self.instructions[0b01000111] = 'PRN'
+        
+        self.branch_table = dict()
+
+        # self.branch_table['HLT'] = self.running = False
+        self.branch_table['LDI'] = lambda operand_a, operand_b, _: self.reg_write(operand_a, operand_b)
+        self.branch_table['MUL'] = lambda operand_a, operand_b, instruction: self.alu(instruction, operand_a, operand_b)
+        self.branch_table['PRN'] = lambda operand_a, _1, _2: print(self.reg_read(operand_a))
 
     def ram_read(self, address):
         return self.ram[address]
@@ -27,18 +42,6 @@ class CPU:
         """Load a program into memory."""
 
         address = 0
-
-        # For now, we've just hardcoded a program:
-
-        # program = [
-        #     # From print8.ls8
-        #     0b10000010, # LDI R0,8
-        #     0b00000000,
-        #     0b00001000,
-        #     0b01000111, # PRN R0
-        #     0b00000000,
-        #     0b00000001, # HLT
-        # ]
 
         program = list()
 
@@ -82,40 +85,22 @@ class CPU:
 
         print()
 
-    def decode(self, instruction):
-        # bitshift right six places to get the number of operands
-        num_operands = instruction >> 6
-        # mask and bitshift right five places to get the alu operation flag
-        alu_operation = (instruction & 0b00100000) >> 5
-        # mask and bitshift right four places to get the set program counter flag
-        set_program_counter = (instruction & 0b00010000) >> 4
-        # mask everything but the last four characters to get the cpu instruction code
-        instruction = instruction & 0b00001111
-        return (num_operands, alu_operation, set_program_counter, instruction)
-
     def run(self):
         """Run the CPU."""
-        # Read next instruction from memory address in PC and store it in the instruction register
-        ir = self.ram_read(self.pc)
-        # Decode the value stored in the instruction register
-        (num_operands, alu_operation, set_program_counter, instruction) = self.decode(ir)
-        # Read the next two byte values and store them in operand_a and operand_b
-        operand_a = self.ram_read(self.pc + 1)
-        operand_b = self.ram_read(self.pc + 2)
-        # HLT
-        if ir == 0b00000001:
-            sys.exit()
-        # LDI
-        elif ir == 0b10000010:
-            self.reg_write(operand_a, operand_b)
-        # PRN
-        elif ir == 0b01000111:
-            print(self.reg_read(operand_a))
-        elif ir == 0b10100010:
-            self.alu(instruction, operand_a, operand_b)
-        else:
-            raise Exception("Unsupported CPU instruction")
-        # Update the PC to point to the next instruction
-        self.pc += (1 + num_operands)
-        # Loop
-        self.run()
+        while self.running == True:
+            # Read next instruction from memory address in PC and store it in the instruction register
+            ir = self.ram_read(self.pc)
+            # Decode the value stored in the instruction register
+            decoded_instruction = self.instructions[ir]
+            # Find the number of operands
+            num_operands = ir >> 6
+            # For ALU operations find the instruction
+            instruction = ir & 0b00001111
+            # Read the next two byte values and store them in operand_a and operand_b
+            operand_a = self.ram_read(self.pc + 1)
+            operand_b = self.ram_read(self.pc + 2)
+            self.branch_table[decoded_instruction](operand_a, operand_b, instruction)
+            # Update the PC to point to the next instruction
+            self.pc += (1 + num_operands)
+            # Loop
+            self.run()
