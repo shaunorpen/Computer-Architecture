@@ -11,6 +11,11 @@ class CPU:
         self.reg = [0] * 8      # 8 general-purpose registers
         self.pc = 0             # program counter initialised to zero
 
+        # Instruction Set
+        self.HLT = 0b0001
+        self.LDI = 0b0010
+        self.PRN = 0b0111
+
     def ram_read(self, address):
         return self.ram[address]
 
@@ -67,29 +72,38 @@ class CPU:
 
         print()
 
+    def decode(self, instruction):
+        # bitshift right six places to get the number of operands
+        num_operands = instruction >> 6
+        # mask and bitshift right five places to get the alu operation flag
+        alu_operation = (instruction & 0b00100000) >> 5
+        # mask and bitshift right four places to get the set program counter flag
+        set_program_counter = (instruction & 0b00010000) >> 4
+        # mask everything but the last four characters to get the cpu instruction code
+        cpu_instruction = instruction & 0b00001111
+        return (num_operands, alu_operation, set_program_counter, cpu_instruction)
+
     def run(self):
         """Run the CPU."""
-        # Read instruction from memory address in PC and store it in IR
+        # Read next instruction from memory address in PC and store it in the instruction register
         ir = self.ram_read(self.pc)
+        # Decode the value stored in the instruction register
+        (num_operands, alu_operation, set_program_counter, cpu_instruction) = self.decode(ir)
         # Read the next two byte values and store them in operand_a and operand_b
         operand_a = self.ram_read(self.pc + 1)
         operand_b = self.ram_read(self.pc + 2)
-        # Set the default increment value to 1
-        increment = 1
         # HLT
-        if ir == 0b00000001:
+        if cpu_instruction == self.HLT:
             sys.exit()
         # LDI
-        elif ir == 0b10000010:
+        elif cpu_instruction == self.LDI:
             self.ram_write(operand_a, operand_b)
-            increment += 2
         # PRN
-        elif ir == 0b01000111:
+        elif cpu_instruction == self.PRN:
             print(self.ram_read(operand_a))
-            increment += 1
         else:
             raise Exception("Unsupported CPU instruction")
         # Update the PC to point to the next instruction
-        self.pc += increment
+        self.pc += (1 + num_operands)
         # Loop
         self.run()
