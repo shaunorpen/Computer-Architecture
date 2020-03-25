@@ -91,7 +91,7 @@ class CPU:
         self.running = False
 
     def ldi(self, operand_a, operand_b):
-        self.reg_write(operand_a, operand_b)
+        self.reg[operand_a] = operand_b
 
     def push(self, reg_address):
         """
@@ -127,19 +127,13 @@ class CPU:
         self.sp += 1
 
     def prn(self, operand_a):
-        print(self.reg_read(operand_a))
+        print(self.reg[operand_a])
 
     def ram_read(self, address):
         return self.ram[address]
 
     def ram_write(self, address, value):
         self.ram[address] = value
-
-    def reg_read(self, address):
-        return self.reg[address]
-
-    def reg_write(self, address, value):
-        self.reg[address] = value
 
     def load(self):
         """Load a program into memory."""
