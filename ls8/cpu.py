@@ -20,10 +20,18 @@ class CPU:
         self.instructions[0b01000111] = 'PRN'
         
         self.branch_table = dict()
+        self.branch_table['LDI'] = self.ldi
+        self.branch_table['MUL'] = self.mul
+        self.branch_table['PRN'] = self.prn
 
-        self.branch_table['LDI'] = lambda operand_a, operand_b, _: self.reg_write(operand_a, operand_b)
-        self.branch_table['MUL'] = lambda operand_a, operand_b, instruction: self.alu(instruction, operand_a, operand_b)
-        self.branch_table['PRN'] = lambda operand_a, _1, _2: print(self.reg_read(operand_a))
+    def ldi(self, operand_a, operand_b):
+        self.reg_write(operand_a, operand_b)
+
+    def mul(self, operand_a, operand_b):
+        self.alu('MUL', operand_a, operand_b)
+
+    def prn(self, operand_a):
+        print(self.reg_read(operand_a))
 
     def ram_read(self, address):
         return self.ram[address]
@@ -58,7 +66,7 @@ class CPU:
 
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
-        elif op == 0b0010:
+        elif op == 'MUL':
             self.reg[reg_a] *= self.reg[reg_b]
         #elif op == "SUB": etc
         else:
@@ -93,17 +101,21 @@ class CPU:
             decoded_instruction = self.instructions[ir]
             # Find the number of operands
             num_operands = ir >> 6
-            # For ALU operations find the instruction
-            instruction = ir & 0b00001111
             # Read the next two byte values and store them in operand_a and operand_b
             operand_a = self.ram_read(self.pc + 1)
             operand_b = self.ram_read(self.pc + 2)
+            # Construct ARGS
+            args = list()
+            if num_operands > 0:
+                args.append(operand_a)
+                if num_operands > 1:
+                    args.append(operand_b)
             # Halt
             if decoded_instruction == 'HLT':
                 self.running = False
             else:
                 # Execute the instruction
-                self.branch_table[decoded_instruction](operand_a, operand_b, instruction)
+                self.branch_table[decoded_instruction](*args)
                 # Update the PC to point to the next instruction
                 self.pc += (1 + num_operands)
                 # Loop
