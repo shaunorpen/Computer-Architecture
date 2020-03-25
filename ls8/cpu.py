@@ -23,6 +23,10 @@ class CPU:
         self.branch_table['LDI'] = self.ldi
         self.branch_table['MUL'] = self.mul
         self.branch_table['PRN'] = self.prn
+        self.branch_table['HLT'] = self.hlt
+
+    def hlt(self):
+        self.running = False
 
     def ldi(self, operand_a, operand_b):
         self.reg_write(operand_a, operand_b)
@@ -110,15 +114,9 @@ class CPU:
                 args.append(operand_a)
                 if num_operands > 1:
                     args.append(operand_b)
-            # Halt
-            if decoded_instruction == 'HLT':
-                self.running = False
-            else:
-                # Execute the instruction
-                self.branch_table[decoded_instruction](*args)
-                # Update the PC to point to the next instruction
-                self.pc += (1 + num_operands)
-                # Loop
-                self.run()
-
-        sys.exit()
+            # Execute the instruction
+            self.branch_table[decoded_instruction](*args)
+            # Update the PC to point to the next instruction
+            self.pc += (1 + num_operands)
+            # Loop
+            self.run()
