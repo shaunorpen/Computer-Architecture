@@ -11,13 +11,16 @@ class CPU:
 
         self.ram = [0] * 256    # 256 bytes of memory
         self.reg = [0] * 8      # 8 general-purpose registers
-        self.pc = 0             # program counter initialised to zero
+        self.pc = 0             # program counter initialised to point to memory address zero
+        self.sp = int('F4', 16) # stack pointer initialised to point to memory address F4
 
         self.instructions = dict()
         self.instructions[0b00000001] = 'HLT'
         self.instructions[0b10000010] = 'LDI'
         self.instructions[0b10100010] = 'MUL'
+        self.instructions[0b01000110] = 'POP'
         self.instructions[0b01000111] = 'PRN'
+        self.instructions[0b01000101] = 'PUSH'
         
         self.branch_table = dict()
         """
@@ -77,6 +80,8 @@ class CPU:
         """
         self.branch_table['HLT'] = self.hlt
         self.branch_table['LDI'] = self.ldi
+        self.branch_table['PUSH'] = self.push
+        self.branch_table['POP'] = self.pop
         self.branch_table['PRN'] = self.prn
 
     def mul(self, operand_a, operand_b):
@@ -87,6 +92,39 @@ class CPU:
 
     def ldi(self, operand_a, operand_b):
         self.reg_write(operand_a, operand_b)
+
+    def push(self, reg_address):
+        """
+        Push the value in the given register on the stack.
+
+        1. Decrement the `SP`.
+        2. Copy the value in the given register to the address pointed to by
+        `SP`.
+
+        Machine code:
+        
+        01000101 00000rrr
+        45 0r
+        
+        """
+        self.sp -= 1
+        self.ram[self.sp] = self.reg[reg_address]
+
+    def pop(self, reg_address):
+        """
+        Pop the value at the top of the stack into the given register.
+
+        1. Copy the value from the address pointed to by `SP` to the given register.
+        2. Increment `SP`.
+
+        Machine code:
+        
+        01000110 00000rrr
+        46 0r
+        
+        """
+        self.reg[reg_address] = self.ram[self.sp]
+        self.sp += 1
 
     def prn(self, operand_a):
         print(self.reg_read(operand_a))
@@ -110,7 +148,7 @@ class CPU:
 
         program = list()
 
-        with open("/Users/shaunorpen/Lambda/ls8/ls8/examples/mult.ls8") as f:
+        with open("/Users/shaunorpen/Lambda/ls8/ls8/examples/stack.ls8") as f:
             for line in f:
                 line_values = line.split("#")
                 program.append(int(line_values[0].strip(), 2))
