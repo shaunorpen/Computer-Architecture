@@ -62,8 +62,6 @@ class CPU:
         """
 
         self.running = True
-        self.update_pc = True   # flag to determine whether to update the pc or not
-
         self.instructions = dict()
         self.instructions[0b01010000] = 'CALL'
         self.instructions[0b00000001] = 'HLT'
@@ -145,6 +143,7 @@ class CPU:
         self.mar += 1
         operand_b = self.ram_read()
         self.alu('ADD', operand_a, operand_b)
+        self.pc += 3
 
     def mul(self):
         self.mar += 1
@@ -152,6 +151,7 @@ class CPU:
         self.mar += 1
         operand_b = self.ram_read()
         self.alu('MUL', operand_a, operand_b)
+        self.pc += 3
     
     def hlt(self):
         self.running = False
@@ -162,6 +162,7 @@ class CPU:
         self.mar += 1
         operand_b = self.ram_read()
         self.reg[operand_a] = operand_b
+        self.pc += 3
 
     def push(self):
         """
@@ -183,6 +184,7 @@ class CPU:
         self.mar = self.reg[7]
         self.mdr = self.reg[reg_address]
         self.ram_write()
+        self.pc += 2
 
     def pop(self):
         """
@@ -202,6 +204,7 @@ class CPU:
         self.mar = self.reg[7]
         self.reg[reg_address] = self.ram_read()
         self.reg[7] += 1
+        self.pc += 2
 
     def call(self):
         """
@@ -227,8 +230,6 @@ class CPU:
         self.ram_write()
         # set the pc to the address stored in the given register
         self.pc = self.reg[reg_address]
-        # set the update_pc flag as false
-        self.update_pc = False
 
     def ret(self):
         """
@@ -247,13 +248,12 @@ class CPU:
         self.pc = self.ram_read()
         # increment the stack pointer
         self.reg[7] += 1
-        # set the update_pc flag as false
-        self.update_pc = False
 
     def prn(self):
         self.mar += 1
         operand_a = self.ram_read()
         print(self.reg[operand_a])
+        self.pc += 2
 
     def ram_read(self):
         return self.ram[self.mar]
@@ -297,14 +297,7 @@ class CPU:
             self.ir = self.ram_read()
             # Decode the value stored in the instruction register
             decoded_instruction = self.instructions[self.ir]
-            # Find the number of operands
-            num_operands = self.ir >> 6
             # Execute the instruction
             self.branch_table[decoded_instruction]()
-            # Update the PC to point to the next instruction
-            if self.update_pc:
-                self.pc += (1 + num_operands)
-            # Set the update_pc flag to true
-            self.update_pc = True
             # Loop
             self.run()
