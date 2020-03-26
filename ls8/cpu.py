@@ -10,9 +10,25 @@ class CPU:
         self.running = True
 
         self.ram = [0] * 256    # 256 bytes of memory
-        self.reg = [0] * 8      # 8 general-purpose registers
+
+        """
+        8 general-purpose 8-bit numeric registers R0-R7.
+
+        * R5 is reserved as the interrupt mask (IM)
+        * R6 is reserved as the interrupt status (IS)
+        * R7 is reserved as the stack pointer (SP)
+
+        > These registers only hold values between 0-255. After performing math on
+        > registers in the emulator, bitwise-AND the result with 0xFF (255) to keep the
+        > register values in that range.
+        """
+
+        self.reg = [0] * 8      # 8 general purpose registers
+        self.reg[5] = 0         # interrupt mask
+        self.reg[6] = 0         # interrupt status
+        self.reg[7] = 0xF4      # stack pointer
+
         self.pc = 0             # program counter initialised to point to memory address zero
-        self.sp = int('F4', 16) # stack pointer initialised to point to memory address F4
         self.update_pc = True   # flag to determine whether to update the pc or not
 
         self.instructions = dict()
@@ -116,8 +132,8 @@ class CPU:
         45 0r
         
         """
-        self.sp -= 1
-        self.ram[self.sp] = self.reg[reg_address]
+        self.reg[7] -= 1
+        self.ram[self.reg[7]] = self.reg[reg_address]
 
     def pop(self, reg_address):
         """
@@ -132,8 +148,8 @@ class CPU:
         46 0r
         
         """
-        self.reg[reg_address] = self.ram[self.sp]
-        self.sp += 1
+        self.reg[reg_address] = self.ram[self.reg[7]]
+        self.reg[7] += 1
 
     def call(self, reg_address):
         """
@@ -150,9 +166,9 @@ class CPU:
         ```
         """
         # decrement the stack pointer
-        self.sp -= 1
+        self.reg[7] -= 1
         # copy the value at memory address program counter + 2 to the address pointed at by the stack pointer
-        self.ram[self.sp] = self.pc + 2
+        self.ram[self.reg[7]] = self.pc + 2
         # set the pc to the address stored in the given register
         self.pc = self.reg[reg_address]
         # set the update_pc flag as false
@@ -171,9 +187,9 @@ class CPU:
         ```
         """
         # copy the value from the top of the stack into the pc
-        self.pc = self.ram[self.sp]
+        self.pc = self.ram[self.reg[7]]
         # increment the stack pointer
-        self.sp += 1
+        self.reg[7] += 1
         # set the update_pc flag as false
         self.update_pc = False
 
