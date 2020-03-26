@@ -126,26 +126,26 @@ class CPU:
 
     def add(self):
         self.mar += 1
-        operand_a = self.ram_read()
+        reg_a = self.ram_read()
         self.mar += 1
-        operand_b = self.ram_read()
-        self.alu('ADD', operand_a, operand_b)
+        reg_b = self.ram_read()
+        self.alu('ADD', reg_a, reg_b)
         self.pc += 3
 
     def mul(self):
         self.mar += 1
-        operand_a = self.ram_read()
+        reg_a = self.ram_read()
         self.mar += 1
-        operand_b = self.ram_read()
-        self.alu('MUL', operand_a, operand_b)
+        reg_b = self.ram_read()
+        self.alu('MUL', reg_a, reg_b)
         self.pc += 3
 
     def ldi(self):
         self.mar += 1
-        operand_a = self.ram_read()
+        reg_a = self.ram_read()
         self.mar += 1
-        operand_b = self.ram_read()
-        self.reg[operand_a] = operand_b
+        reg_b = self.ram_read()
+        self.reg[reg_a] = reg_b
         self.pc += 3
 
     def push(self):
@@ -235,8 +235,8 @@ class CPU:
 
     def prn(self):
         self.mar += 1
-        operand_a = self.ram_read()
-        print(self.reg[operand_a])
+        reg_a = self.ram_read()
+        print(self.reg[reg_a])
         self.pc += 2
 
     def ram_read(self):
