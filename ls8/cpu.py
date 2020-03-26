@@ -163,10 +163,10 @@ class CPU:
         
         """
         self.mar += 1
-        reg_address = self.ram_read()
+        reg_a = self.ram_read()
         self.reg[7] -= 1
         self.mar = self.reg[7]
-        self.mdr = self.reg[reg_address]
+        self.mdr = self.reg[reg_a]
         self.ram_write()
         self.pc += 2
 
@@ -184,9 +184,9 @@ class CPU:
         
         """
         self.mar += 1
-        reg_address = self.ram_read()
+        reg_a = self.ram_read()
         self.mar = self.reg[7]
-        self.reg[reg_address] = self.ram_read()
+        self.reg[reg_a] = self.ram_read()
         self.reg[7] += 1
         self.pc += 2
 
@@ -205,7 +205,7 @@ class CPU:
         ```
         """
         self.mar += 1
-        reg_address = self.ram_read()
+        reg_a = self.ram_read()
         # decrement the stack pointer
         self.reg[7] -= 1
         # copy the value at memory address program counter + 2 to the address pointed at by the stack pointer
@@ -213,7 +213,7 @@ class CPU:
         self.mdr = self.pc + 2
         self.ram_write()
         # set the pc to the address stored in the given register
-        self.pc = self.reg[reg_address]
+        self.pc = self.reg[reg_a]
 
     def ret(self):
         """
