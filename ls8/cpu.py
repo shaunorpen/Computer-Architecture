@@ -82,8 +82,8 @@ class CPU:
         SHL  10101100 00000aaa 00000bbb
         SHR  10101101 00000aaa 00000bbb
         """
-        self.branch_table[0b10100010] = self.mul
         self.branch_table[0b10100000] = self.add
+        self.branch_table[0b10100010] = self.mul
         """
         PC Mutators
         CALL 01010000 00000rrr
