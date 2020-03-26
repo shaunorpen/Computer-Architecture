@@ -119,7 +119,6 @@ class CPU:
         PRN  01000111 00000rrr
         PRA  01001000 00000rrr
         """
-        self.branch_table[0b00000001] = self.hlt
         self.branch_table[0b10000010] = self.ldi
         self.branch_table[0b01000101] = self.push
         self.branch_table[0b01000110] = self.pop
@@ -140,9 +139,6 @@ class CPU:
         operand_b = self.ram_read()
         self.alu('MUL', operand_a, operand_b)
         self.pc += 3
-    
-    def hlt(self):
-        self.running = False
 
     def ldi(self):
         self.mar += 1
