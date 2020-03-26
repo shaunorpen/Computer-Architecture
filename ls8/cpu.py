@@ -166,7 +166,9 @@ class CPU:
         
         """
         self.reg[7] -= 1
-        self.ram[self.reg[7]] = self.reg[reg_address]
+        self.mar = self.reg[7]
+        self.mdr = self.reg[reg_address]
+        self.ram_write()
 
     def pop(self, reg_address):
         """
@@ -181,7 +183,8 @@ class CPU:
         46 0r
         
         """
-        self.reg[reg_address] = self.ram[self.reg[7]]
+        self.mar = self.reg[7]
+        self.reg[reg_address] = self.ram_read()
         self.reg[7] += 1
 
     def call(self, reg_address):
@@ -201,7 +204,9 @@ class CPU:
         # decrement the stack pointer
         self.reg[7] -= 1
         # copy the value at memory address program counter + 2 to the address pointed at by the stack pointer
-        self.ram[self.reg[7]] = self.pc + 2
+        self.mar = self.reg[7]
+        self.mdr = self.pc + 2
+        self.ram_write()
         # set the pc to the address stored in the given register
         self.pc = self.reg[reg_address]
         # set the update_pc flag as false
@@ -220,7 +225,8 @@ class CPU:
         ```
         """
         # copy the value from the top of the stack into the pc
-        self.pc = self.ram[self.reg[7]]
+        self.mar = self.reg[7]
+        self.pc = self.ram_read()
         # increment the stack pointer
         self.reg[7] += 1
         # set the update_pc flag as false
@@ -238,8 +244,6 @@ class CPU:
     def load(self):
         """Load a program into memory."""
 
-        address = 0
-
         program = list()
 
         with open("/Users/shaunorpen/Lambda/ls8/ls8/examples/call.ls8") as f:
@@ -249,9 +253,10 @@ class CPU:
                 if len(instruction_string) > 0:
                     program.append(int(instruction_string.strip(), 2))
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+        for i in range(len(program)):
+            self.mar = i
+            self.mdr = program[i]
+            self.ram_write()
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
