@@ -7,11 +7,12 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        self.running = True
 
         self.ram = [0] * 256    # 256 bytes of memory
 
         """
+        REGISTERS
+
         8 general-purpose 8-bit numeric registers R0-R7.
 
         * R5 is reserved as the interrupt mask (IM)
@@ -28,7 +29,39 @@ class CPU:
         self.reg[6] = 0         # interrupt status
         self.reg[7] = 0xF4      # stack pointer
 
-        self.pc = 0             # program counter initialised to point to memory address zero
+        """
+        INTERNAL REGISTERS
+
+        * `PC`: Program Counter, address of the currently executing instruction
+        * `IR`: Instruction Register, contains a copy of the currently executing instruction
+        * `MAR`: Memory Address Register, holds the memory address we're reading or writing
+        * `MDR`: Memory Data Register, holds the value to write or the value just read
+        * `FL`: Flags, see below
+        """
+
+        self.pc = 0             # program counter
+        self.ir = 0             # instruction register 
+        self.mar = 0            # memory address register
+        self.mdr = 0            # memory data register
+        self.fl = 0             # flags
+
+        """
+        The flags register `FL` holds the current flags status. These flags
+        can change based on the operands given to the `CMP` opcode.
+
+        The register is made up of 8 bits. If a particular bit is set, that flag is "true".
+
+        `FL` bits: `00000LGE`
+
+        * `L` Less-than: during a `CMP`, set to 1 if registerA is less than registerB,
+        zero otherwise.
+        * `G` Greater-than: during a `CMP`, set to 1 if registerA is greater than
+        registerB, zero otherwise.
+        * `E` Equal: during a `CMP`, set to 1 if registerA is equal to registerB, zero
+        otherwise.
+        """
+
+        self.running = True
         self.update_pc = True   # flag to determine whether to update the pc or not
 
         self.instructions = dict()
@@ -196,11 +229,11 @@ class CPU:
     def prn(self, operand_a):
         print(self.reg[operand_a])
 
-    def ram_read(self, address):
-        return self.ram[address]
+    def ram_read(self):
+        return self.ram[self.mar]
 
-    def ram_write(self, address, value):
-        self.ram[address] = value
+    def ram_write(self):
+        self.ram[self.mar] = self.mdr
 
     def load(self):
         """Load a program into memory."""
@@ -231,38 +264,21 @@ class CPU:
         else:
             raise Exception("Unsupported ALU operation")
 
-    def trace(self):
-        """
-        Handy function to print out the CPU state. You might want to call this
-        from run() if you need help debugging.
-        """
-
-        print(f"TRACE: %02X | %02X %02X %02X |" % (
-            self.pc,
-            #self.fl,
-            #self.ie,
-            self.ram_read(self.pc),
-            self.ram_read(self.pc + 1),
-            self.ram_read(self.pc + 2)
-        ), end='')
-
-        for i in range(8):
-            print(" %02X" % self.reg[i], end='')
-
-        print()
-
     def run(self):
         """Run the CPU."""
         while self.running == True:
             # Read next instruction from memory address in PC and store it in the instruction register
-            ir = self.ram_read(self.pc)
+            self.mar = self.pc
+            self.ir = self.ram_read()
             # Decode the value stored in the instruction register
-            decoded_instruction = self.instructions[ir]
+            decoded_instruction = self.instructions[self.ir]
             # Find the number of operands
-            num_operands = ir >> 6
+            num_operands = self.ir >> 6
             # Read the next two byte values and store them in operand_a and operand_b
-            operand_a = self.ram_read(self.pc + 1)
-            operand_b = self.ram_read(self.pc + 2)
+            self.mar += 1
+            operand_a = self.ram_read()
+            self.mar += 1
+            operand_b = self.ram_read()
             # Construct ARGS
             args = list()
             if num_operands > 0:
