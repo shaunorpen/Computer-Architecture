@@ -13,14 +13,18 @@ class CPU:
         self.reg = [0] * 8      # 8 general-purpose registers
         self.pc = 0             # program counter initialised to point to memory address zero
         self.sp = int('F4', 16) # stack pointer initialised to point to memory address F4
+        self.update_pc = True   # flag to determine whether to update the pc or not
 
         self.instructions = dict()
+        self.instructions[0b01010000] = 'CALL'
         self.instructions[0b00000001] = 'HLT'
         self.instructions[0b10000010] = 'LDI'
         self.instructions[0b10100010] = 'MUL'
         self.instructions[0b01000110] = 'POP'
         self.instructions[0b01000111] = 'PRN'
         self.instructions[0b01000101] = 'PUSH'
+        self.instructions[0b00010001] = 'RET'
+        self.instructions[0b10100000] = 'ADD'
         
         self.branch_table = dict()
         """
@@ -44,6 +48,7 @@ class CPU:
         SHR  10101101 00000aaa 00000bbb
         """
         self.branch_table['MUL'] = self.mul
+        self.branch_table['ADD'] = self.add
         """
         PC Mutators
         CALL 01010000 00000rrr
@@ -60,7 +65,8 @@ class CPU:
         JLE  01011001 00000rrr
         JGE  01011010 00000rrr
         """
-
+        self.branch_table['CALL'] = self.call
+        self.branch_table['RET'] = self.ret
         """
         Other
         NOP  00000000
@@ -83,6 +89,9 @@ class CPU:
         self.branch_table['PUSH'] = self.push
         self.branch_table['POP'] = self.pop
         self.branch_table['PRN'] = self.prn
+
+    def add(self, operand_a, operand_b):
+        self.alu('ADD', operand_a, operand_b)
 
     def mul(self, operand_a, operand_b):
         self.alu('MUL', operand_a, operand_b)
@@ -126,6 +135,48 @@ class CPU:
         self.reg[reg_address] = self.ram[self.sp]
         self.sp += 1
 
+    def call(self, reg_address):
+        """
+        Calls a subroutine (function) at the address stored in the register.
+
+        1. The address of the ***instruction*** _directly after_ `CALL` is
+        pushed onto the stack. This allows us to return to where we left off when the subroutine finishes executing.
+        2. The PC is set to the address stored in the given register. We jump to that location in RAM and execute the first instruction in the subroutine. The PC can move forward or backwards from its current location.
+
+        Machine code:
+        ```
+        01010000 00000rrr
+        50 0r
+        ```
+        """
+        # decrement the stack pointer
+        self.sp -= 1
+        # copy the value at memory address program counter + 2 to the address pointed at by the stack pointer
+        self.ram[self.sp] = self.pc + 2
+        # set the pc to the address stored in the given register
+        self.pc = self.reg[reg_address]
+        # set the update_pc flag as false
+        self.update_pc = False
+
+    def ret(self):
+        """
+        Return from subroutine.
+
+        Pop the value from the top of the stack and store it in the `PC`.
+
+        Machine Code:
+        ```
+        00010001
+        11
+        ```
+        """
+        # copy the value from the top of the stack into the pc
+        self.pc = self.ram[self.sp]
+        # increment the stack pointer
+        self.sp += 1
+        # set the update_pc flag as false
+        self.update_pc = False
+
     def prn(self, operand_a):
         print(self.reg[operand_a])
 
@@ -142,10 +193,12 @@ class CPU:
 
         program = list()
 
-        with open("/Users/shaunorpen/Lambda/ls8/ls8/examples/stack.ls8") as f:
+        with open("/Users/shaunorpen/Lambda/ls8/ls8/examples/call.ls8") as f:
             for line in f:
                 line_values = line.split("#")
-                program.append(int(line_values[0].strip(), 2))
+                instruction_string = line_values[0]
+                if len(instruction_string) > 0:
+                    program.append(int(instruction_string.strip(), 2))
 
         for instruction in program:
             self.ram[address] = instruction
@@ -203,6 +256,9 @@ class CPU:
             # Execute the instruction
             self.branch_table[decoded_instruction](*args)
             # Update the PC to point to the next instruction
-            self.pc += (1 + num_operands)
+            if self.update_pc:
+                self.pc += (1 + num_operands)
+            # Set the update_pc flag to true
+            self.update_pc = True
             # Loop
             self.run()
