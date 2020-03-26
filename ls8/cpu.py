@@ -60,18 +60,6 @@ class CPU:
         * `E` Equal: during a `CMP`, set to 1 if registerA is equal to registerB, zero
         otherwise.
         """
-
-        self.running = True
-        self.instructions = dict()
-        self.instructions[0b01010000] = 'CALL'
-        self.instructions[0b00000001] = 'HLT'
-        self.instructions[0b10000010] = 'LDI'
-        self.instructions[0b10100010] = 'MUL'
-        self.instructions[0b01000110] = 'POP'
-        self.instructions[0b01000111] = 'PRN'
-        self.instructions[0b01000101] = 'PUSH'
-        self.instructions[0b00010001] = 'RET'
-        self.instructions[0b10100000] = 'ADD'
         
         self.branch_table = dict()
         """
@@ -94,8 +82,8 @@ class CPU:
         SHL  10101100 00000aaa 00000bbb
         SHR  10101101 00000aaa 00000bbb
         """
-        self.branch_table['MUL'] = self.mul
-        self.branch_table['ADD'] = self.add
+        self.branch_table[0b10100010] = self.mul
+        self.branch_table[0b10100000] = self.add
         """
         PC Mutators
         CALL 01010000 00000rrr
@@ -112,8 +100,8 @@ class CPU:
         JLE  01011001 00000rrr
         JGE  01011010 00000rrr
         """
-        self.branch_table['CALL'] = self.call
-        self.branch_table['RET'] = self.ret
+        self.branch_table[0b01010000] = self.call
+        self.branch_table[0b00010001] = self.ret
         """
         Other
         NOP  00000000
@@ -131,11 +119,11 @@ class CPU:
         PRN  01000111 00000rrr
         PRA  01001000 00000rrr
         """
-        self.branch_table['HLT'] = self.hlt
-        self.branch_table['LDI'] = self.ldi
-        self.branch_table['PUSH'] = self.push
-        self.branch_table['POP'] = self.pop
-        self.branch_table['PRN'] = self.prn
+        self.branch_table[0b00000001] = self.hlt
+        self.branch_table[0b10000010] = self.ldi
+        self.branch_table[0b01000101] = self.push
+        self.branch_table[0b01000110] = self.pop
+        self.branch_table[0b01000111] = self.prn
 
     def add(self):
         self.mar += 1
@@ -291,13 +279,15 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        while self.running == True:
-            # Read next instruction from memory address in PC and store it in the instruction register
+        # Read the first instruction
+        self.mar = self.pc
+        self.ir = self.ram_read()
+        # If the instruction is anything other than HLT, run the program
+        while not self.ir == 1:
+            # Execute the instruction
+            self.branch_table[self.ir]()
+            # Read next instruction
             self.mar = self.pc
             self.ir = self.ram_read()
-            # Decode the value stored in the instruction register
-            decoded_instruction = self.instructions[self.ir]
-            # Execute the instruction
-            self.branch_table[decoded_instruction]()
             # Loop
             self.run()
