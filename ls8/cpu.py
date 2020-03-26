@@ -139,19 +139,31 @@ class CPU:
         self.branch_table['POP'] = self.pop
         self.branch_table['PRN'] = self.prn
 
-    def add(self, operand_a, operand_b):
+    def add(self):
+        self.mar += 1
+        operand_a = self.ram_read()
+        self.mar += 1
+        operand_b = self.ram_read()
         self.alu('ADD', operand_a, operand_b)
 
-    def mul(self, operand_a, operand_b):
+    def mul(self):
+        self.mar += 1
+        operand_a = self.ram_read()
+        self.mar += 1
+        operand_b = self.ram_read()
         self.alu('MUL', operand_a, operand_b)
     
     def hlt(self):
         self.running = False
 
-    def ldi(self, operand_a, operand_b):
+    def ldi(self):
+        self.mar += 1
+        operand_a = self.ram_read()
+        self.mar += 1
+        operand_b = self.ram_read()
         self.reg[operand_a] = operand_b
 
-    def push(self, reg_address):
+    def push(self):
         """
         Push the value in the given register on the stack.
 
@@ -165,12 +177,14 @@ class CPU:
         45 0r
         
         """
+        self.mar += 1
+        reg_address = self.ram_read()
         self.reg[7] -= 1
         self.mar = self.reg[7]
         self.mdr = self.reg[reg_address]
         self.ram_write()
 
-    def pop(self, reg_address):
+    def pop(self):
         """
         Pop the value at the top of the stack into the given register.
 
@@ -183,11 +197,13 @@ class CPU:
         46 0r
         
         """
+        self.mar += 1
+        reg_address = self.ram_read()
         self.mar = self.reg[7]
         self.reg[reg_address] = self.ram_read()
         self.reg[7] += 1
 
-    def call(self, reg_address):
+    def call(self):
         """
         Calls a subroutine (function) at the address stored in the register.
 
@@ -201,6 +217,8 @@ class CPU:
         50 0r
         ```
         """
+        self.mar += 1
+        reg_address = self.ram_read()
         # decrement the stack pointer
         self.reg[7] -= 1
         # copy the value at memory address program counter + 2 to the address pointed at by the stack pointer
@@ -232,7 +250,9 @@ class CPU:
         # set the update_pc flag as false
         self.update_pc = False
 
-    def prn(self, operand_a):
+    def prn(self):
+        self.mar += 1
+        operand_a = self.ram_read()
         print(self.reg[operand_a])
 
     def ram_read(self):
@@ -279,19 +299,8 @@ class CPU:
             decoded_instruction = self.instructions[self.ir]
             # Find the number of operands
             num_operands = self.ir >> 6
-            # Read the next two byte values and store them in operand_a and operand_b
-            self.mar += 1
-            operand_a = self.ram_read()
-            self.mar += 1
-            operand_b = self.ram_read()
-            # Construct ARGS
-            args = list()
-            if num_operands > 0:
-                args.append(operand_a)
-                if num_operands > 1:
-                    args.append(operand_b)
             # Execute the instruction
-            self.branch_table[decoded_instruction](*args)
+            self.branch_table[decoded_instruction]()
             # Update the PC to point to the next instruction
             if self.update_pc:
                 self.pc += (1 + num_operands)
