@@ -63,36 +63,6 @@ class CPU:
         
         self.branch_table = dict()
         """
-        ALU ops
-        ADD  10100000 00000aaa 00000bbb
-        SUB  10100001 00000aaa 00000bbb
-        MUL  10100010 00000aaa 00000bbb
-        DIV  10100011 00000aaa 00000bbb
-        MOD  10100100 00000aaa 00000bbb
-
-        INC  01100101 00000rrr
-        DEC  01100110 00000rrr
-
-        CMP  10100111 00000aaa 00000bbb
-
-        AND  10101000 00000aaa 00000bbb
-        NOT  01101001 00000rrr
-        OR   10101010 00000aaa 00000bbb
-        XOR  10101011 00000aaa 00000bbb
-        SHL  10101100 00000aaa 00000bbb
-        SHR  10101101 00000aaa 00000bbb
-        """
-        self.branch_table[0b10100000] = self.alu_add
-        self.branch_table[0b10100010] = self.alu_mul
-        self.branch_table[0b10100100] = self.alu_mod
-        self.branch_table[0b10100111] = self.alu_cmp
-        self.branch_table[0b10101000] = self.alu_and
-        self.branch_table[0b01101001] = self.alu_not
-        self.branch_table[0b10101010] = self.alu_or
-        self.branch_table[0b10101011] = self.alu_xor
-        self.branch_table[0b10101100] = self.alu_shl
-        self.branch_table[0b10101101] = self.alu_shr
-        """
         PC Mutators
         CALL 01010000 00000rrr
         RET  00010001
@@ -131,16 +101,66 @@ class CPU:
         PRA  01001000 00000rrr
         """
         self.branch_table[0b10000010] = self.ldi
+        self.branch_table[0b10001111] = self.addi
         self.branch_table[0b01000101] = self.push
         self.branch_table[0b01000110] = self.pop
         self.branch_table[0b01000111] = self.prn
+
+        self.alu_branch_table = dict()
+        """
+        ALU ops
+        ADD  10100000 00000aaa 00000bbb
+        SUB  10100001 00000aaa 00000bbb
+        MUL  10100010 00000aaa 00000bbb
+        DIV  10100011 00000aaa 00000bbb
+        MOD  10100100 00000aaa 00000bbb
+
+        INC  01100101 00000rrr
+        DEC  01100110 00000rrr
+
+        CMP  10100111 00000aaa 00000bbb
+
+        AND  10101000 00000aaa 00000bbb
+        NOT  01101001 00000rrr
+        OR   10101010 00000aaa 00000bbb
+        XOR  10101011 00000aaa 00000bbb
+        SHL  10101100 00000aaa 00000bbb
+        SHR  10101101 00000aaa 00000bbb
+        """
+        self.alu_branch_table[0b10100000] = self.alu_add
+        self.alu_branch_table[0b10100010] = self.alu_mul
+        self.alu_branch_table[0b10100100] = self.alu_mod
+        self.alu_branch_table[0b10100111] = self.alu_cmp
+        self.alu_branch_table[0b10101000] = self.alu_and
+        self.alu_branch_table[0b01101001] = self.alu_not
+        self.alu_branch_table[0b10101010] = self.alu_or
+        self.alu_branch_table[0b10101011] = self.alu_xor
+        self.alu_branch_table[0b10101100] = self.alu_shl
+        self.alu_branch_table[0b10101101] = self.alu_shr
+
+    def addi(self):
+        """
+        Add the value in reg_b to the value in reg_a, storing the result in reg_a.
+
+        Machine code:
+        ```
+        10001111 00000aaa 00000bbb
+        F 0a 0b
+        ```
+        """
+        self.mar += 1
+        reg_a = self.ram_read()
+        self.mar += 1
+        reg_b = self.ram_read()
+        self.reg[reg_a] += reg_b
+        self.pc += 3
 
     def alu_add(self):
         self.mar += 1
         reg_a = self.ram_read()
         self.mar += 1
         reg_b = self.ram_read()
-        self.alu('ADD', reg_a, reg_b)
+        self.reg[reg_a] += self.reg[reg_b]
         self.pc += 3
 
     def alu_mul(self):
@@ -148,7 +168,7 @@ class CPU:
         reg_a = self.ram_read()
         self.mar += 1
         reg_b = self.ram_read()
-        self.alu('MUL', reg_a, reg_b)
+        self.reg[reg_a] *= self.reg[reg_b]
         self.pc += 3
 
     def alu_mod(self):
@@ -480,16 +500,9 @@ class CPU:
             self.mdr = program[i]
             self.ram_write()
 
-    def alu(self, op, reg_a, reg_b):
+    def alu(self):
         """ALU operations."""
-
-        if op == "ADD":
-            self.reg[reg_a] += self.reg[reg_b]
-        elif op == 'MUL':
-            self.reg[reg_a] *= self.reg[reg_b]
-        #elif op == "SUB": etc
-        else:
-            raise Exception("Unsupported ALU operation")
+        self.alu_branch_table[self.ir]()
 
     def run(self):
         """Run the CPU."""
@@ -499,7 +512,12 @@ class CPU:
         # If the instruction is anything other than HLT, run the program
         while not self.ir == 0b00000001:
             # Execute the instruction
-            self.branch_table[self.ir]()
+            # If ALU operation, call the ALU
+            if self.ir & 0b00100000 == 0b00100000:
+                self.alu()
+            # Otherwise call the default branch table
+            else: 
+                self.branch_table[self.ir]()
             # Read next instruction
             self.mar = self.pc
             self.ir = self.ram_read()
