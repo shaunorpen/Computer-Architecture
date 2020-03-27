@@ -515,7 +515,7 @@ class CPU:
             # If ALU operation, call the ALU
             if self.ir & 0b00100000 == 0b00100000:
                 self.alu()
-            # Otherwise call the default branch table
+            # Otherwise call the cpu branch table
             else: 
                 self.branch_table[self.ir]()
             # Read next instruction
