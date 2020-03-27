@@ -82,9 +82,16 @@ class CPU:
         SHL  10101100 00000aaa 00000bbb
         SHR  10101101 00000aaa 00000bbb
         """
-        self.branch_table[0b10100000] = self.add
-        self.branch_table[0b10100010] = self.mul
-        self.branch_table[0b10100111] = self.cmp
+        self.branch_table[0b10100000] = self.alu_add
+        self.branch_table[0b10100010] = self.alu_mul
+        self.branch_table[0b10100100] = self.alu_mod
+        self.branch_table[0b10100111] = self.alu_cmp
+        self.branch_table[0b10101000] = self.alu_and
+        self.branch_table[0b01101001] = self.alu_not
+        self.branch_table[0b10101010] = self.alu_or
+        self.branch_table[0b10101011] = self.alu_xor
+        self.branch_table[0b10101100] = self.alu_shl
+        self.branch_table[0b10101101] = self.alu_shr
         """
         PC Mutators
         CALL 01010000 00000rrr
@@ -128,7 +135,7 @@ class CPU:
         self.branch_table[0b01000110] = self.pop
         self.branch_table[0b01000111] = self.prn
 
-    def add(self):
+    def alu_add(self):
         self.mar += 1
         reg_a = self.ram_read()
         self.mar += 1
@@ -136,12 +143,169 @@ class CPU:
         self.alu('ADD', reg_a, reg_b)
         self.pc += 3
 
-    def mul(self):
+    def alu_mul(self):
         self.mar += 1
         reg_a = self.ram_read()
         self.mar += 1
         reg_b = self.ram_read()
         self.alu('MUL', reg_a, reg_b)
+        self.pc += 3
+
+    def alu_mod(self):
+        """
+        Divide the value in the first register by the value in the second,
+        storing the _remainder_ of the result in registerA.
+
+        If the value in the second register is 0, the system should print an
+        error message and halt.
+
+        Machine code:
+        ```
+        10100100 00000aaa 00000bbb
+        A4 0a 0b
+        ```
+        """
+        self.mar += 1
+        reg_a = self.ram_read()
+        self.mar += 1
+        reg_b = self.ram_read()
+        if self.reg[reg_b] > 0:
+            self.reg[reg_a] = self.reg[reg_a] % self.reg[reg_b]
+        else:
+            raise ZeroDivisionError
+        self.pc += 3
+
+    def alu_cmp(self):
+        """
+        Compare the values in two registers.
+
+        * If they are equal, set the Equal `E` flag to 1, otherwise set it to 0.
+
+        * If registerA is less than registerB, set the Less-than `L` flag to 1,
+        otherwise set it to 0.
+
+        * If registerA is greater than registerB, set the Greater-than `G` flag
+        to 1, otherwise set it to 0.
+
+        Machine code:
+        ```
+        10100111 00000aaa 00000bbb
+        A7 0a 0b
+        ```
+        """
+        self.mar += 1
+        reg_a = self.ram_read()
+        self.mar += 1
+        reg_b = self.ram_read()
+        if self.reg[reg_a] == self.reg[reg_b]:
+            self.fl = 0b00000001
+        elif self.reg[reg_a] > self.reg[reg_b]:
+            self.fl = 0b00000010
+        else:
+            self.fl = 0b00000100
+        self.pc += 3
+
+    def alu_and(self):
+        """
+        Bitwise-AND the values in registerA and registerB, then store the result in
+        registerA.
+
+        Machine code:
+        ```
+        10101000 00000aaa 00000bbb
+        A8 0a 0b
+        ```
+        """
+        self.mar += 1
+        reg_a = self.ram_read()
+        self.mar += 1
+        reg_b = self.ram_read()
+        self.reg[reg_a] = self.reg[reg_a] & self.reg[reg_b]
+        self.pc += 3
+
+    def alu_not(self):
+        """
+        Perform a bitwise-NOT on the value in a register, storing the result in the register.
+
+        Machine code:
+        ```
+        01101001 00000rrr
+        69 0r
+        ```
+        """
+        self.mar += 1
+        reg_a = self.ram_read()
+        self.reg[reg_a] = ~ self.reg[reg_a]
+        self.pc += 2
+
+    def alu_or(self):
+        """
+        Perform a bitwise-OR between the values in registerA and registerB, storing the
+        result in registerA.
+
+        Machine code:
+        ```
+        10101010 00000aaa 00000bbb
+        AA 0a 0b
+        ```
+        """
+        self.mar += 1
+        reg_a = self.ram_read()
+        self.mar += 1
+        reg_b = self.ram_read()
+        self.reg[reg_a] = self.reg[reg_a] | self.reg[reg_b]
+        self.pc += 3
+
+    def alu_xor(self):
+        """
+        Perform a bitwise-XOR between the values in registerA and registerB, storing the
+        result in registerA.
+
+        Machine code:
+        ```
+        10101011 00000aaa 00000bbb
+        AB 0a 0b
+        ```
+        """
+        self.mar += 1
+        reg_a = self.ram_read()
+        self.mar += 1
+        reg_b = self.ram_read()
+        self.reg[reg_a] = self.reg[reg_a] ^ self.reg[reg_b]
+        self.pc += 3
+
+    def alu_shl(self):
+        """
+        Shift the value in registerA left by the number of bits specified in registerB,
+        filling the low bits with 0.
+
+        ```
+        10101100 00000aaa 00000bbb
+        AC 0a 0b
+        ```
+        """
+        self.mar += 1
+        reg_a = self.ram_read()
+        self.mar += 1
+        reg_b = self.ram_read()
+        self.reg[reg_a] = self.reg[reg_a] << self.reg[reg_b]
+        self.pc += 3
+
+    def alu_shr(self):
+        """
+        Shift the value in registerA right by the number of bits specified in registerB,
+        filling the high bits with 0.
+
+        ```
+        10101101 00000aaa 00000bbb
+        AD 0a 0b
+        ```
+        """
+        self.mar += 1
+        reg_a = self.ram_read()
+        self.mar += 1
+        reg_b = self.ram_read()
+        self.reg[reg_a] = self.reg[reg_a] >> self.reg[reg_b]
         self.pc += 3
 
     def ldi(self):
@@ -236,36 +400,6 @@ class CPU:
         self.pc = self.ram_read()
         # increment the stack pointer
         self.reg[7] += 1
-
-    def cmp(self):
-        """
-        Compare the values in two registers.
-
-        * If they are equal, set the Equal `E` flag to 1, otherwise set it to 0.
-
-        * If registerA is less than registerB, set the Less-than `L` flag to 1,
-        otherwise set it to 0.
-
-        * If registerA is greater than registerB, set the Greater-than `G` flag
-        to 1, otherwise set it to 0.
-
-        Machine code:
-        ```
-        10100111 00000aaa 00000bbb
-        A7 0a 0b
-        ```
-        """
-        self.mar += 1
-        reg_a = self.ram_read()
-        self.mar += 1
-        reg_b = self.ram_read()
-        if self.reg[reg_a] == self.reg[reg_b]:
-            self.fl = 0b00000001
-        elif self.reg[reg_a] > self.reg[reg_b]:
-            self.fl = 0b00000010
-        else:
-            self.fl = 0b00000100
-        self.pc += 3
 
     def jmp(self):
         """
@@ -363,7 +497,7 @@ class CPU:
         self.mar = self.pc
         self.ir = self.ram_read()
         # If the instruction is anything other than HLT, run the program
-        while not self.ir == 1:
+        while not self.ir == 0b00000001:
             # Execute the instruction
             self.branch_table[self.ir]()
             # Read next instruction
