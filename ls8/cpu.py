@@ -84,6 +84,7 @@ class CPU:
         """
         self.branch_table[0b10100000] = self.add
         self.branch_table[0b10100010] = self.mul
+        self.branch_table[0b10100111] = self.cmp
         """
         PC Mutators
         CALL 01010000 00000rrr
@@ -102,6 +103,9 @@ class CPU:
         """
         self.branch_table[0b01010000] = self.call
         self.branch_table[0b00010001] = self.ret
+        self.branch_table[0b01010100] = self.jmp
+        self.branch_table[0b01010101] = self.jeq
+        self.branch_table[0b01010110] = self.jne
         """
         Other
         NOP  00000000
@@ -233,6 +237,86 @@ class CPU:
         # increment the stack pointer
         self.reg[7] += 1
 
+    def cmp(self):
+        """
+        Compare the values in two registers.
+
+        * If they are equal, set the Equal `E` flag to 1, otherwise set it to 0.
+
+        * If registerA is less than registerB, set the Less-than `L` flag to 1,
+        otherwise set it to 0.
+
+        * If registerA is greater than registerB, set the Greater-than `G` flag
+        to 1, otherwise set it to 0.
+
+        Machine code:
+        ```
+        10100111 00000aaa 00000bbb
+        A7 0a 0b
+        ```
+        """
+        self.mar += 1
+        reg_a = self.ram_read()
+        self.mar += 1
+        reg_b = self.ram_read()
+        if self.reg[reg_a] == self.reg[reg_b]:
+            self.fl = 0b00000001
+        elif self.reg[reg_a] > self.reg[reg_b]:
+            self.fl = 0b00000010
+        else:
+            self.fl = 0b00000100
+        self.pc += 3
+
+    def jmp(self):
+        """
+        Jump to the address stored in the given register.
+
+        Set the `PC` to the address stored in the given register.
+
+        Machine code:
+        ```
+        01010100 00000rrr
+        54 0r
+        ```
+        """
+        self.mar += 1
+        reg_a = self.ram_read()
+        self.pc = self.reg[reg_a]
+
+    def jeq(self):
+        """
+        If `equal` flag is set (true), jump to the address stored in the given register.
+
+        Machine code:
+        ```
+        01010101 00000rrr
+        55 0r
+        ```
+        """
+        if self.fl == 0b00000001:
+            self.mar += 1
+            reg_a = self.ram_read()
+            self.pc = self.reg[reg_a]
+        else:
+            self.pc += 2
+
+    def jne(self):
+        """
+        If `E` flag is clear (false, 0), jump to the address stored in the given
+        register.
+
+        Machine code:
+        ```
+        01010110 00000rrr
+        56 0r
+        """
+        if self.fl & 0b00000001 == 0:
+            self.mar += 1
+            reg_a = self.ram_read()
+            self.pc = self.reg[reg_a]
+        else:
+            self.pc += 2
+
     def prn(self):
         self.mar += 1
         reg_a = self.ram_read()
@@ -250,7 +334,7 @@ class CPU:
 
         program = list()
 
-        with open("/Users/shaunorpen/Lambda/ls8/ls8/examples/call.ls8") as f:
+        with open("/Users/shaunorpen/Lambda/ls8/ls8/examples/sctest.ls8") as f:
             for line in f:
                 line_values = line.split("#")
                 instruction_string = line_values[0]
